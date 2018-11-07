@@ -1,13 +1,20 @@
-﻿using System;
-using API.Models;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.OpenPublishing.ConfigService.DataAccessors;
+using Newtonsoft.Json.Linq;
+using System.Threading.Tasks;
 
-namespace API.Controllers
+namespace Microsoft.OpenPublishing.ConfigService
 {
-    [Route("api/repos/{repoId}/docsets/{docsetName}/configs")]
+    [Route("api/repos/{repoId}/docsets/{docsetName}/config")]
     [ApiController]
     public class ConfigController : ControllerBase
     {
+        private readonly IConfigAccessor _configAccessor;
+
+        public ConfigController(IConfigAccessor configAccessor)
+        {
+            _configAccessor = configAccessor;
+        }
         /// <summary>
         /// Return UI data contract/Raw data depends on contentType=json/file
         /// </summary>
@@ -15,10 +22,11 @@ namespace API.Controllers
         /// <param name="docsetName"></param>
         /// <returns></returns>
         [HttpGet]
-        public IActionResult Get(string repoId, string docsetName, [FromHeader(Name = "content-type")]string contentType)
+        public async Task<JsonResult> Get(string repoId, string docsetName)
         {
-            Console.WriteLine(contentType);
-            return new JsonResult(new { returnValue = contentType });
+            var config = await _configAccessor.GetConfigByDocsetInfo(repoId, docsetName);
+
+            return new JsonResult(config?.Config);
         }
 
         /// <summary>
@@ -27,9 +35,9 @@ namespace API.Controllers
         /// <param name="repoId"></param>
         /// <param name="docsetName"></param>
         [HttpPost]
-        public IActionResult Post(string repoId, string docsetName)
+        public async Task<JsonResult> Post(string repoId, string docsetName)
         {
-            return new JsonResult(new { created = true });
+            return new JsonResult(new { created = await _configAccessor.CreateConfig(repoId, docsetName) });
         }
 
         /// <summary>
@@ -37,19 +45,9 @@ namespace API.Controllers
         /// </summary>
         /// <param name="values"></param>
         [HttpPut]
-        public IActionResult Put([FromBody] object values)
+        public async Task<JsonResult> Put(string repoId, string docsetName, [FromBody] JObject values)
         {
-            return new JsonResult(new { updated = true });
-        }
-
-        /// <summary>
-        /// Delete one config from configs
-        /// </summary>
-        /// <param name="configName"></param>
-        [HttpDelete("{configName}")]
-        public IActionResult Delete(string configName)
-        {
-            return new JsonResult(new { deleted = true });
+            return new JsonResult(new { updated = await _configAccessor.UpdateConfig(repoId, docsetName, values)});
         }
     }
 }
